@@ -4,9 +4,9 @@ rm(list = ls())
 #load packages
 library(tidyverse)
 library(stargazer)
-library(dplyr)
-library(ggplot2)
 library(shiny)
+library(ggplot2)
+
 
 ### Black-Scholes Option Pricer ###
 
@@ -79,12 +79,110 @@ calc_pnl <- function(asset_path, K, r, sigma, T, type = "call", market_price_spr
 }
 
 
+### ui 
+ui <- fluidPage(
+  titlePanel("Black-Scholes Option PnL Simulator"),
+  
+  sidebarLayout(
+    sidebarPanel(
+      numericInput("S0", "Initial Spot Price (S₀)", 100),
+      numericInput("K", "Strike Price (K)", 100),
+      numericInput("T", "Time to Maturity (T, in years)", 1),
+      numericInput("r", "Risk-Free Rate (r)", 0.05),
+      numericInput("sigma", "Volatility (σ)", 0.2),
+      numericInput("mu", "Expected Return (μ)", 0.05),
+      numericInput("steps", "Simulation Steps", 100),
+      selectInput("type", "Option Type", c("call", "put")),
+      numericInput("spread", "Market Price Spread (%)", 2, min = 0, step = 0.1)
+    ),
+    
+    mainPanel(
+      tabsetPanel(
+        tabPanel("Price Path", plotOutput("pricePlot")),
+        tabPanel("PnL", plotOutput("pnlPlot")),
+        tabPanel("Greeks",
+                 plotOutput("deltaPlot"),
+                 plotOutput("gammaPlot"),
+                 plotOutput("vegaPlot"),
+                 plotOutput("thetaPlot"))
+      )
+    )
+  )
+)
+
+### server
+server <- function(input, output) {
+  sim_data <- reactive({
+    simulate_gbm(
+      S0 = input$S0,
+      mu = input$mu,
+      sigma = input$sigma,
+      T = input$T,
+      steps = input$steps
+    )
+  })
+  
+  pnl_data <- reactive({
+    calc_pnl(
+      asset_path = sim_data(),
+      K = input$K,
+      r = input$r,
+      sigma = input$sigma,
+      T = input$T,
+      type = input$type,
+      market_price_spread = input$spread / 100
+    )
+  })
+  
+  output$pricePlot <- renderPlot({
+    ggplot(sim_data(), aes(x = time, y = S)) +
+      geom_line(color = "darkgreen") +
+      labs(title = "Simulated Asset Price Path", y = "Price", x = "Time") +
+      theme_minimal()
+  })
+  
+  output$pnlPlot <- renderPlot({
+    ggplot(pnl_data(), aes(x = time, y = pnl)) +
+      geom_line(color = "steelblue") +
+      labs(title = "Option PnL Over Time", y = "PnL (£)", x = "Time") +
+      theme_minimal()
+  })
+  
+  output$deltaPlot <- renderPlot({
+    ggplot(pnl_data(), aes(x = time, y = delta)) +
+      geom_line(color = "purple") +
+      labs(title = "Delta", y = "Delta", x = "Time") +
+      theme_minimal()
+  })
+  
+  output$gammaPlot <- renderPlot({
+    ggplot(pnl_data(), aes(x = time, y = gamma)) +
+      geom_line(color = "red") +
+      labs(title = "Gamma", y = "Gamma", x = "Time") +
+      theme_minimal()
+  })
+  
+  output$vegaPlot <- renderPlot({
+    ggplot(pnl_data(), aes(x = time, y = vega)) +
+      geom_line(color = "orange") +
+      labs(title = "Vega", y = "Vega", x = "Time") +
+      theme_minimal()
+  })
+  
+  output$thetaPlot <- renderPlot({
+    ggplot(pnl_data(), aes(x = time, y = theta)) +
+      geom_line(color = "brown") +
+      labs(title = "Theta", y = "Theta", x = "Time") +
+      theme_minimal()
+  })
+}
+
+
 # --- Launch App ---
 shinyApp(ui = ui, server = server)
 
 
 ### Step-by-Step Plan
-
 #Simulate an asset path using Geometric Brownian Motion (GBM)
 #Calculate option prices + Greeks at each point using Black-Scholes
 #Compute PnL from a given trade (e.g., buying the option at market price)

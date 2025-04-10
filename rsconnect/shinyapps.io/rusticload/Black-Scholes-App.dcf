@@ -1,0 +1,12 @@
+name: Black-Scholes-App
+title: Black-Scholes-App
+username: rusticload
+account: rusticload
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 14469332
+bundleId: 10084619
+url: https://rusticload.shinyapps.io/Black-Scholes-App/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
